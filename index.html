@@ -3,59 +3,100 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>لعبة النقر المتقدمة</title>
+    <title>تطبيق النقر المصغر</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        body { background-color: #0f172a; color: #ffffff; font-family: Arial, sans-serif; text-align: center; margin: 0; padding: 0; display: flex; flex-direction: column; justify-content: space-between; height: 100vh; overflow: hidden; }
-        .header { padding: 10px; background: #1e293b; border-bottom: 1px solid #334155; }
-        .score-board { font-size: 36px; font-weight: bold; color: #38bdf8; margin: 2px 0; }
-        .energy-container { width: 80%; background: #334155; border-radius: 10px; height: 12px; margin: 5px auto; overflow: hidden; border: 1px solid #475569; }
-        .energy-bar { height: 100%; background: #f59e0b; width: 100%; transition: width 0.2s; }
-        .coin-container { display: flex; flex-direction: column; justify-content: center; align-items: center; flex-grow: 1; }
-        .tap-button { width: 180px; height: 180px; background: linear-gradient(135deg, #f59e0b, #d97706); border: none; border-radius: 50%; cursor: pointer; box-shadow: 0 10px 25px rgba(245, 158, 11, 0.4); font-size: 22px; font-weight: bold; color: white; outline: none; user-select: none; }
-        .tap-button:active { transform: scale(0.92); }
-        .footer { padding: 10px; background: #1e293b; border-top: 1px solid #334155; display: flex; gap: 5px; justify-content: center; }
-        .action-btn { background: #3b82f6; color: white; border: none; padding: 8px 12px; font-size: 13px; border-radius: 6px; cursor: pointer; font-weight: bold; flex: 1; }
-        .ref-btn { background: #22c55e; }
+        * { box-sizing: border-box; }
+        body { background-color: #0b0e14; color: #ffffff; font-family: Arial, sans-serif; text-align: center; margin: 0; padding: 0; display: flex; flex-direction: column; justify-content: space-between; height: 100vh; overflow: hidden; }
         
-        /* نافذة المهام المنبثقة */
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); justify-content: center; align-items: center; z-index: 10; }
-        .modal-content { background: #1e293b; padding: 20px; border-radius: 12px; width: 85%; max-width: 300px; text-align: center; border: 1px solid #334155; }
-        .task-item { background: #334155; padding: 10px; border-radius: 8px; margin: 10px 0; display: flex; justify-content: space-between; align-items: center; font-size: 13px; }
-        .task-btn { background: #10b981; color: white; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer; font-size: 12px; }
-        .close-modal { background: #ef4444; color: white; border: none; padding: 6px 15px; border-radius: 6px; cursor: pointer; margin-top: 10px; }
+        /* محتوى الصفحات */
+        .content-area { flex-grow: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+        .page { display: none; width: 100%; height: 100%; flex-direction: column; justify-content: center; align-items: center; }
+        .page.active { display: flex; }
+
+        /* الشاشة الرئيسية (Home) */
+        .score-board { font-size: 42px; font-weight: bold; color: #f59e0b; margin: 10px 0; }
+        .energy-container { width: 70%; background: #1e2329; border-radius: 10px; height: 10px; margin: 10px auto; overflow: hidden; border: 1px solid #2b313a; }
+        .energy-bar { height: 100%; background: #f59e0b; width: 100%; transition: width 0.2s; }
+        .tap-button { width: 190px; height: 190px; background: linear-gradient(135deg, #f59e0b, #d97706); border: none; border-radius: 50%; cursor: pointer; box-shadow: 0 10px 25px rgba(245, 158, 11, 0.3); font-size: 24px; font-weight: bold; color: white; outline: none; user-select: none; margin-top: 20px; }
+        .tap-button:active { transform: scale(0.92); }
+
+        /* شريط التنقل السفلي الاحترافي */
+        .bottom-nav { background-color: #12161c; border-top: 1px solid #1e2329; display: flex; justify-content: space-around; padding: 8px 0; width: 100%; position: fixed; bottom: 0; left: 0; height: 60px; }
+        .nav-item { background: none; border: none; color: #848e9c; font-size: 11px; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; outline: none; transition: color 0.2s; }
+        .nav-item span.icon { font-size: 20px; margin-bottom: 3px; }
+        .nav-item.active { color: #f59e0b; }
+
+        /* تنسيق الأقسام الأخرى */
+        .card { background: #12161c; border: 1px solid #1e2329; border-radius: 12px; padding: 15px; width: 90%; max-width: 350px; margin: 10px 0; text-align: right; }
+        .btn-custom { background: #f59e0b; color: #000; border: none; padding: 10px 15px; border-radius: 8px; font-weight: bold; cursor: pointer; width: 100%; margin-top: 10px; }
     </style>
 </head>
 <body>
-    <div class="header">
-        <p id="userInfo" style="margin: 0; font-size: 13px; color: #94a3b8;">جاري التحميل...</p>
-        <div class="score-board" id="score">0</div>
-        <div style="font-size: 12px; color: #f59e0b;">الطاقة: <span id="energyText">100</span>/100</div>
-        <div class="energy-container">
-            <div class="energy-bar" id="energyBar"></div>
-        </div>
-    </div>
 
-    <div class="coin-container">
-        <button class="tap-button" id="tapBtn">🪙 اضغط هنا</button>
-    </div>
-
-    <div class="footer">
-        <button class="action-btn" id="tasksBtn">📋 المهام</button>
-        <button class="action-btn ref-btn" id="refBtn">🔗 دعوة صديق</button>
-    </div>
-
-    <!-- نافذة المهام -->
-    <div class="modal" id="tasksModal">
-        <div class="modal-content">
-            <h3>المهام اليومية</h3>
-            <div class="task-item">
-                <span>انضم لقناتنا (+100)</span>
-                <button class="task-btn" onclick="completeTask(100, 'task1')">تنفيذ</button>
+    <!-- منطقة عرض الصفحات -->
+    <div class="content-area">
+        
+        <!-- صفحة الرئيسية (Home) -->
+        <div class="page active" id="page-home">
+            <p id="userInfo" style="color: #848e9c; font-size: 14px; margin: 0;">جاري التحميل...</p>
+            <div class="score-board" id="score">0</div>
+            <div style="font-size: 13px; color: #f59e0b;">⚡ الطاقة: <span id="energyText">100</span>/100</div>
+            <div class="energy-container">
+                <div class="energy-bar" id="energyBar"></div>
             </div>
-            <button class="close-modal" id="closeModal">إغلاق</button>
+            <button class="tap-button" id="tapBtn">🪙 اضغط</button>
         </div>
+
+        <!-- صفحة المهام (Earn) -->
+        <div class="page" id="page-earn">
+            <h2>المهام اليومية 📋</h2>
+            <div class="card">
+                <p style="margin: 0 0 5px 0; font-weight: bold;">انضم لقناتنا الرسمية</p>
+                <p style="margin: 0; font-size: 12px; color: #848e9c;">احصل على +100 نقطة مجاناً</p>
+                <button class="btn-custom" onclick="completeTask(100, 'task1')">تنفيذ المهمة</button>
+            </div>
+        </div>
+
+        <!-- صفحة الأصدقاء (Friends) -->
+        <div class="page" id="page-friends">
+            <h2>دعوة الأصدقاء 🔗</h2>
+            <div class="card" style="text-align: center;">
+                <p style="font-size: 13px; color: #848e9c;">احصل على 50 نقطة عن كل صديق تقوم بدعوته!</p>
+                <button class="btn-custom" id="refBtn">مشاركة رابط الإحالة</button>
+            </div>
+        </div>
+
+        <!-- صفحة المحفظة/الملف الشخصي (Wallet) -->
+        <div class="page" id="page-wallet">
+            <h2>المحفظة 👛</h2>
+            <div class="card">
+                <p>معرف المستخدم: <span id="userIdDisplay" style="color: #f59e0b;">-</span></p>
+                <p>إجمالي الأرباح: <span id="walletScore" style="color: #f59e0b;">0</span> نقطة</p>
+            </div>
+        </div>
+
     </div>
+
+    <!-- شريط التنقل السفلي السفلي الاحترافي -->
+    <nav class="bottom-nav">
+        <button class="nav-item active" onclick="switchPage('home', this)">
+            <span class="icon">🏠</span>
+            <span>الرئيسية</span>
+        </button>
+        <button class="nav-item" onclick="switchPage('earn', this)">
+            <span class="icon">🪙</span>
+            <span>المهام</span>
+        </button>
+        <button class="nav-item" onclick="switchPage('friends', this)">
+            <span class="icon">👥</span>
+            <span>الأصدقاء</span>
+        </button>
+        <button class="nav-item" onclick="switchPage('wallet', this)">
+            <span class="icon">👛</span>
+            <span>المحفظة</span>
+        </button>
+    </nav>
 
     <script>
         let tg = window.Telegram.WebApp;
@@ -64,61 +105,62 @@
         let score = localStorage.getItem('game_score') ? parseInt(localStorage.getItem('game_score')) : 0;
         let energy = localStorage.getItem('game_energy') ? parseInt(localStorage.getItem('game_energy')) : 100;
         const maxEnergy = 100;
+        let currentUserId = "guest";
 
         const scoreElement = document.getElementById('score');
+        const walletScore = document.getElementById('walletScore');
         const energyBar = document.getElementById('energyBar');
         const energyText = document.getElementById('energyText');
         const tapBtn = document.getElementById('tapBtn');
         const userInfo = document.getElementById('userInfo');
+        const userIdDisplay = document.getElementById('userIdDisplay');
         const refBtn = document.getElementById('refBtn');
-        const tasksBtn = document.getElementById('tasksBtn');
-        const tasksModal = document.getElementById('tasksModal');
-        const closeModal = document.getElementById('closeModal');
 
-        scoreElement.innerText = score;
-        updateEnergyUI();
+        updateUI();
 
         if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
             userInfo.innerText = `مرحباً، ${tg.initDataUnsafe.user.first_name}!`;
-            let userId = tg.initDataUnsafe.user.id;
+            currentUserId = tg.initDataUnsafe.user.id;
+            userIdDisplay.innerText = currentUserId;
             
             let startParam = tg.initDataUnsafe.start_param;
-            if (startParam && startParam !== String(userId)) {
+            if (startParam && startParam !== String(currentUserId)) {
                 let rewardedKey = `ref_reward_${startParam}`;
                 if (!localStorage.getItem(rewardedKey)) {
                     score += 50;
                     localStorage.setItem('game_score', score);
                     localStorage.setItem(rewardedKey, "true");
-                    scoreElement.innerText = score;
+                    updateUI();
                 }
             }
         } else {
             userInfo.innerText = "وضع التجربة";
         }
 
-        // نظام تعبئة الطاقة تدريجياً بمرور الوقت
+        function updateUI() {
+            scoreElement.innerText = score;
+            walletScore.innerText = score;
+            energyBar.style.width = (energy / maxEnergy) * 100 + '%';
+            energyText.innerText = energy;
+        }
+
+        // تعبئة الطاقة تدريجياً
         setInterval(() => {
             if (energy < maxEnergy) {
                 energy += 1;
                 localStorage.setItem('game_energy', energy);
-                updateEnergyUI();
+                updateUI();
             }
-        }, 1500); // تزيد نقطة كل 1.5 ثانية
-
-        function updateEnergyUI() {
-            energyBar.style.width = (energy / maxEnergy) * 100 + '%';
-            energyText.innerText = energy;
-        }
+        }, 1500);
 
         // حدث النقر
         tapBtn.addEventListener('click', () => {
             if (energy > 0) {
                 score += 1;
                 energy -= 1;
-                scoreElement.innerText = score;
                 localStorage.setItem('game_score', score);
                 localStorage.setItem('game_energy', energy);
-                updateEnergyUI();
+                updateUI();
 
                 if (tg.HapticFeedback) {
                     tg.HapticFeedback.impactOccurred('light');
@@ -126,33 +168,36 @@
             }
         });
 
+        // التنقل بين الصفحات السفلية
+        window.switchPage = function(pageId, btnElement) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            
+            document.getElementById('page-' + pageId).classList.add('active');
+            btnElement.classList.add('active');
+        }
+
         // زر دعوة الأصدقاء
         refBtn.addEventListener('click', () => {
-            let botUsername = "GuckigameBot"; // معرف بوتك الفعلي
-            let userId = (tg.initDataUnsafe && tg.initDataUnsafe.user) ? tg.initDataUnsafe.user.id : "guest";
-            let refLink = `https://t.me/${botUsername}?start=${userId}`;
-            let shareText = `انضم إلي واكسب النقاط معي! 🎮🔥\n${refLink}`;
+            let botUsername = "GuckigameBot"; 
+            let refLink = `https://t.me/${botUsername}?start=${currentUserId}`;
+            let shareText = `انضم إلي واكسب النقاط معي في تطبيقنا المصغر! 🚀\n${refLink}`;
             
             if (tg.openTelegramLink) {
                 tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(refLink)}&text=${encodeURIComponent(shareText)}`);
             } else {
-                prompt("نسخ رابط الإحالة:", refLink);
+                prompt("نسخ رابط الإحالة الخاص بك:", refLink);
             }
         });
 
-        // فتح وإغلاق نافذة المهام
-        tasksBtn.addEventListener('click', () => { tasksModal.style.display = 'flex'; });
-        closeModal.addEventListener('click', () => { tasksModal.style.display = 'none'; });
-
-        // تنفيذ المهمة
+        // تنفيذ المهام
         window.completeTask = function(reward, taskId) {
             if (!localStorage.getItem(taskId)) {
                 score += reward;
                 localStorage.setItem('game_score', score);
                 localStorage.setItem(taskId, "true");
-                scoreElement.innerText = score;
-                alert(`مبروك! حصلت على ${reward} نقطة.`);
-                // هنا يمكنك أيضاً توجيه المستخدم لقناتك عبر tg.openTelegramLink('رابط_قناتك')
+                updateUI();
+                alert(`مبروك! تمت الإضافة بنجاح، حصلت على ${reward} نقطة.`);
             } else {
                 alert("لقد قمت بتنفيذ هذه المهمة مسبقاً!");
             }
