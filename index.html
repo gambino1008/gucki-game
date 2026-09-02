@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>تطبيق النقر المصغر</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <!-- مكتبة TonConnect للربط المباشر -->
+    <script src="https://unpkg.com/@tonconnect/sdk@latest/dist/tonconnect-sdk.min.js"></script>
     <style>
         * { box-sizing: border-box; }
         body { background-color: #0b0e14; color: #ffffff; font-family: Arial, sans-serif; text-align: center; margin: 0; padding: 0; display: flex; flex-direction: column; justify-content: space-between; height: 100vh; overflow: hidden; }
@@ -13,18 +15,16 @@
         .page { display: none; width: 100%; height: 100%; flex-direction: column; justify-content: center; align-items: center; }
         .page.active { display: flex; }
 
-        /* الرئيسية وتعديل زر العملة الذهبية */
+        /* الرئيسية وتصميم زر العملة المضغوط مباشرة */
         .score-board { font-size: 42px; font-weight: bold; color: #f59e0b; margin: 10px 0; }
         .energy-container { width: 70%; background: #1e2329; border-radius: 10px; height: 10px; margin: 10px auto; overflow: hidden; border: 1px solid #2b313a; }
         .energy-bar { height: 100%; background: #f59e0b; width: 100%; transition: width 0.2s; }
         
-        /* زر العملة الذهبية برابط مستقر */
         .tap-button { 
             width: 210px; 
             height: 210px; 
-            background: url('https://images.unsplash.com/photo-1621416894569-0f39ed31d247?w=500&auto=format&fit=crop&q=80') no-repeat center center; 
-            background-size: cover; 
-            border: none; 
+            background: radial-gradient(circle, #ffe600 0%, #d4af37 70%, #aa7c11 100%);
+            border: 5px solid #fff399; 
             border-radius: 50%; 
             cursor: pointer; 
             box-shadow: 0 10px 30px rgba(245, 158, 11, 0.4); 
@@ -32,6 +32,10 @@
             user-select: none; 
             margin-top: 20px; 
             transition: transform 0.1s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 80px;
         }
         .tap-button:active { 
             transform: scale(0.90); 
@@ -47,9 +51,9 @@
         /* المحفظة */
         .wallet-card { background: #12161c; border: 1px solid #1e2329; border-radius: 16px; padding: 18px; width: 90%; max-width: 350px; margin: 8px 0; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
         .wallet-title { font-size: 13px; color: #848e9c; margin-bottom: 5px; }
-        .wallet-value { font-size: 22px; font-weight: bold; color: #f59e0b; direction: ltr; }
+        .wallet-value { font-size: 15px; font-weight: bold; color: #f59e0b; direction: ltr; word-break: break-all; }
         .wallet-value-ar { font-size: 20px; font-weight: bold; color: #f59e0b; }
-        .btn-withdraw { background: linear-gradient(135deg, #22c55e, #16a34a); color: #fff; border: none; padding: 12px; border-radius: 12px; font-weight: bold; font-size: 15px; cursor: pointer; width: 90%; max-width: 350px; margin-top: 15px; box-shadow: 0 4px 15px rgba(34, 197, 94, 0.3); transition: transform 0.1s; }
+        .btn-withdraw { background: linear-gradient(135deg, #0098ea, #0077b5); color: #fff; border: none; padding: 12px; border-radius: 12px; font-weight: bold; font-size: 15px; cursor: pointer; width: 90%; max-width: 350px; margin-top: 15px; box-shadow: 0 4px 15px rgba(0, 152, 234, 0.3); transition: transform 0.1s; }
         .btn-withdraw:active { transform: scale(0.97); }
 
         /* البطاقات العامة */
@@ -69,8 +73,8 @@
             <div class="energy-container">
                 <div class="energy-bar" id="energyBar"></div>
             </div>
-            <!-- زر العملة الذهبية -->
-            <button class="tap-button" id="tapBtn"></button>
+            <!-- زر العملة الذهبية المضمون -->
+            <button class="tap-button" id="tapBtn">🪙</button>
         </div>
 
         <!-- المهام -->
@@ -92,7 +96,7 @@
             </div>
         </div>
 
-        <!-- المحفظة الاحترافية -->
+        <!-- المحفظة الاحترافية وتوصيل TON -->
         <div class="page" id="page-wallet">
             <h2 style="margin-bottom: 15px;">المحفظة 👛</h2>
             
@@ -102,11 +106,11 @@
             </div>
 
             <div class="wallet-card">
-                <div class="wallet-title">معرف المستخدم التعريفي (Telegram ID)</div>
-                <div class="wallet-value" id="userIdDisplay">جاري الجلب...</div>
+                <div class="wallet-title">حالة محفظة TON</div>
+                <div class="wallet-value" id="walletStatusText">غير متصلة</div>
             </div>
 
-            <button class="btn-withdraw" id="withdrawBtn">💳 سحب الأرباح (ربط محفظة تيليغرام)</button>
+            <button class="btn-withdraw" id="connectTonBtn">🔗 ربط محفظة TON (TonConnect)</button>
         </div>
 
     </div>
@@ -146,30 +150,17 @@
         const energyText = document.getElementById('energyText');
         const tapBtn = document.getElementById('tapBtn');
         const userInfo = document.getElementById('userInfo');
-        const userIdDisplay = document.getElementById('userIdDisplay');
+        const walletStatusText = document.getElementById('walletStatusText');
+        const connectTonBtn = document.getElementById('connectTonBtn');
         const refBtn = document.getElementById('refBtn');
-        const withdrawBtn = document.getElementById('withdrawBtn');
 
         updateUI();
 
         if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
             userInfo.innerText = `مرحباً، ${tg.initDataUnsafe.user.first_name}!`;
             currentUserId = tg.initDataUnsafe.user.id;
-            userIdDisplay.innerText = currentUserId;
-            
-            let startParam = tg.initDataUnsafe.start_param;
-            if (startParam && startParam !== String(currentUserId)) {
-                let rewardedKey = `ref_reward_${startParam}`;
-                if (!localStorage.getItem(rewardedKey)) {
-                    score += 50;
-                    localStorage.setItem('game_score', score);
-                    localStorage.setItem(rewardedKey, "true");
-                    updateUI();
-                }
-            }
         } else {
             userInfo.innerText = `مرحباً، Adel!`;
-            userIdDisplay.innerText = "6530462258";
         }
 
         function updateUI() {
@@ -178,6 +169,37 @@
             energyBar.style.width = (energy / maxEnergy) * 100 + '%';
             energyText.innerText = energy;
         }
+
+        // إعداد نظام TonConnect للمحفظة
+        const tonConnectUI = new TON_CONNECT_SDK.TonConnectUI({
+            manifestUrl: 'https://raw.githubusercontent.com/ton-connect/docs/main/public/tonconnect-manifest.json',
+            buttonRootId: null
+        });
+
+        tonConnectUI.onStatusChange(wallet => {
+            if (wallet) {
+                const rawAddress = wallet.account.address;
+                walletStatusText.innerText = rawAddress.substring(0, 6) + "..." + rawAddress.substring(rawAddress.length - 6);
+                connectTonBtn.innerText = "✅ متصلة بنجاح";
+                connectTonBtn.style.background = "linear-gradient(135deg, #22c55e, #16a34a)";
+            } else {
+                walletStatusText.innerText = "غير متصلة";
+                connectTonBtn.innerText = "🔗 ربط محفظة TON (TonConnect)";
+                connectTonBtn.style.background = "linear-gradient(135deg, #0098ea, #0077b5)";
+            }
+        });
+
+        connectTonBtn.addEventListener('click', async () => {
+            try {
+                if (tonConnectUI.connected) {
+                    await tonConnectUI.disconnect();
+                } else {
+                    await tonConnectUI.openModal();
+                }
+            } catch (error) {
+                console.log(error);
+            }
+        });
 
         // تعبئة الطاقة تدريجياً
         setInterval(() => {
@@ -188,7 +210,7 @@
             }
         }, 1500);
 
-        // حدث النقر على العملة الذهبية
+        // حدث النقر
         tapBtn.addEventListener('click', () => {
             if (energy > 0) {
                 score += 1;
@@ -211,21 +233,6 @@
             document.getElementById('page-' + pageId).classList.add('active');
             btnElement.classList.add('active');
         }
-
-        // زر سحب الأرباح
-        withdrawBtn.addEventListener('click', () => {
-            if (score < 1000) {
-                alert("عذراً، الحد الأدنى للسحب هو 1000 نقطة. استمر في جمع النقاط!");
-                return;
-            }
-            
-            let walletBotUrl = "https://t.me/wallet"; 
-            if (tg.openTelegramLink) {
-                tg.openTelegramLink(walletBotUrl);
-            } else {
-                window.open(walletBotUrl, '_blank');
-            }
-        });
 
         // دعوة الأصدقاء
         refBtn.addEventListener('click', () => {
@@ -255,3 +262,4 @@
     </script>
 </body>
 </html>
+
