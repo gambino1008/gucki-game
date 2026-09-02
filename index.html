@@ -3,33 +3,58 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>لعبة النقر وإحالة الأصدقاء</title>
+    <title>لعبة النقر المتقدمة</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         body { background-color: #0f172a; color: #ffffff; font-family: Arial, sans-serif; text-align: center; margin: 0; padding: 0; display: flex; flex-direction: column; justify-content: space-between; height: 100vh; overflow: hidden; }
-        .header { padding: 15px; }
-        .score-board { font-size: 40px; font-weight: bold; color: #38bdf8; margin-top: 5px; }
-        .coin-container { display: flex; justify-content: center; align-items: center; flex-grow: 1; }
-        .tap-button { width: 190px; height: 190px; background: linear-gradient(135deg, #38bdf8, #0284c7); border: none; border-radius: 50%; cursor: pointer; box-shadow: 0 10px 25px rgba(56, 189, 248, 0.4); font-size: 24px; font-weight: bold; color: white; outline: none; user-select: none; }
-        .tap-button:active { transform: scale(0.90); }
-        .footer { padding: 15px; font-size: 13px; color: #94a3b8; background: #1e293b; border-top: 1px solid #334155; }
-        .ref-btn { background: #22c55e; color: white; border: none; padding: 10px 20px; font-size: 15px; border-radius: 8px; cursor: pointer; margin-top: 8px; font-weight: bold; width: 100%; }
+        .header { padding: 10px; background: #1e293b; border-bottom: 1px solid #334155; }
+        .score-board { font-size: 36px; font-weight: bold; color: #38bdf8; margin: 2px 0; }
+        .energy-container { width: 80%; background: #334155; border-radius: 10px; height: 12px; margin: 5px auto; overflow: hidden; border: 1px solid #475569; }
+        .energy-bar { height: 100%; background: #f59e0b; width: 100%; transition: width 0.2s; }
+        .coin-container { display: flex; flex-direction: column; justify-content: center; align-items: center; flex-grow: 1; }
+        .tap-button { width: 180px; height: 180px; background: linear-gradient(135deg, #f59e0b, #d97706); border: none; border-radius: 50%; cursor: pointer; box-shadow: 0 10px 25px rgba(245, 158, 11, 0.4); font-size: 22px; font-weight: bold; color: white; outline: none; user-select: none; }
+        .tap-button:active { transform: scale(0.92); }
+        .footer { padding: 10px; background: #1e293b; border-top: 1px solid #334155; display: flex; gap: 5px; justify-content: center; }
+        .action-btn { background: #3b82f6; color: white; border: none; padding: 8px 12px; font-size: 13px; border-radius: 6px; cursor: pointer; font-weight: bold; flex: 1; }
+        .ref-btn { background: #22c55e; }
+        
+        /* نافذة المهام المنبثقة */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); justify-content: center; align-items: center; z-index: 10; }
+        .modal-content { background: #1e293b; padding: 20px; border-radius: 12px; width: 85%; max-width: 300px; text-align: center; border: 1px solid #334155; }
+        .task-item { background: #334155; padding: 10px; border-radius: 8px; margin: 10px 0; display: flex; justify-content: space-between; align-items: center; font-size: 13px; }
+        .task-btn { background: #10b981; color: white; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer; font-size: 12px; }
+        .close-modal { background: #ef4444; color: white; border: none; padding: 6px 15px; border-radius: 6px; cursor: pointer; margin-top: 10px; }
     </style>
 </head>
 <body>
     <div class="header">
-        <p id="userInfo">جاري تحميل اللعبة...</p>
-        <p style="margin:5px 0 0 0;">رصيدك الحالي</p>
+        <p id="userInfo" style="margin: 0; font-size: 13px; color: #94a3b8;">جاري التحميل...</p>
         <div class="score-board" id="score">0</div>
+        <div style="font-size: 12px; color: #f59e0b;">الطاقة: <span id="energyText">100</span>/100</div>
+        <div class="energy-container">
+            <div class="energy-bar" id="energyBar"></div>
+        </div>
     </div>
 
     <div class="coin-container">
-        <button class="tap-button" id="tapBtn">اضغط هنا! 🪙</button>
+        <button class="tap-button" id="tapBtn">🪙 اضغط هنا</button>
     </div>
 
     <div class="footer">
-        <p style="margin:0 0 5px 0;">ادعُ أصدقاءك واكسب 50 نقطة لكل صديق!</p>
-        <button class="ref-btn" id="refBtn">🔗 دعوة صديق</button>
+        <button class="action-btn" id="tasksBtn">📋 المهام</button>
+        <button class="action-btn ref-btn" id="refBtn">🔗 دعوة صديق</button>
+    </div>
+
+    <!-- نافذة المهام -->
+    <div class="modal" id="tasksModal">
+        <div class="modal-content">
+            <h3>المهام اليومية</h3>
+            <div class="task-item">
+                <span>انضم لقناتنا (+100)</span>
+                <button class="task-btn" onclick="completeTask(100, 'task1')">تنفيذ</button>
+            </div>
+            <button class="close-modal" id="closeModal">إغلاق</button>
+        </div>
     </div>
 
     <script>
@@ -37,57 +62,101 @@
         tg.expand();
 
         let score = localStorage.getItem('game_score') ? parseInt(localStorage.getItem('game_score')) : 0;
+        let energy = localStorage.getItem('game_energy') ? parseInt(localStorage.getItem('game_energy')) : 100;
+        const maxEnergy = 100;
+
         const scoreElement = document.getElementById('score');
+        const energyBar = document.getElementById('energyBar');
+        const energyText = document.getElementById('energyText');
         const tapBtn = document.getElementById('tapBtn');
         const userInfo = document.getElementById('userInfo');
         const refBtn = document.getElementById('refBtn');
+        const tasksBtn = document.getElementById('tasksBtn');
+        const tasksModal = document.getElementById('tasksModal');
+        const closeModal = document.getElementById('closeModal');
 
         scoreElement.innerText = score;
+        updateEnergyUI();
 
-        let userId = "guest";
         if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
             userInfo.innerText = `مرحباً، ${tg.initDataUnsafe.user.first_name}!`;
-            userId = tg.initDataUnsafe.user.id;
+            let userId = tg.initDataUnsafe.user.id;
             
-            // التحقق إذا دخل عبر رابط إحالة لأول مرة
             let startParam = tg.initDataUnsafe.start_param;
             if (startParam && startParam !== String(userId)) {
                 let rewardedKey = `ref_reward_${startParam}`;
                 if (!localStorage.getItem(rewardedKey)) {
-                    score += 50; // مكافأة الإحالة
+                    score += 50;
                     localStorage.setItem('game_score', score);
                     localStorage.setItem(rewardedKey, "true");
+                    scoreElement.innerText = score;
                 }
             }
         } else {
             userInfo.innerText = "وضع التجربة";
         }
 
-        scoreElement.innerText = score;
+        // نظام تعبئة الطاقة تدريجياً بمرور الوقت
+        setInterval(() => {
+            if (energy < maxEnergy) {
+                energy += 1;
+                localStorage.setItem('game_energy', energy);
+                updateEnergyUI();
+            }
+        }, 1500); // تزيد نقطة كل 1.5 ثانية
 
-        // حدث النقر لزيادة النقاط
+        function updateEnergyUI() {
+            energyBar.style.width = (energy / maxEnergy) * 100 + '%';
+            energyText.innerText = energy;
+        }
+
+        // حدث النقر
         tapBtn.addEventListener('click', () => {
-            score += 1;
-            scoreElement.innerText = score;
-            localStorage.setItem('game_score', score);
+            if (energy > 0) {
+                score += 1;
+                energy -= 1;
+                scoreElement.innerText = score;
+                localStorage.setItem('game_score', score);
+                localStorage.setItem('game_energy', energy);
+                updateEnergyUI();
 
-            if (tg.HapticFeedback) {
-                tg.HapticFeedback.impactOccurred('light');
+                if (tg.HapticFeedback) {
+                    tg.HapticFeedback.impactOccurred('light');
+                }
             }
         });
 
         // زر دعوة الأصدقاء
         refBtn.addEventListener('click', () => {
-            let botUsername = "@GuckigameBot"; // استبدل هذا بمعرف بوتك الفعلي الذي ينتهي بـ bot
+            let botUsername = "GuckigameBot"; // معرف بوتك الفعلي
+            let userId = (tg.initDataUnsafe && tg.initDataUnsafe.user) ? tg.initDataUnsafe.user.id : "guest";
             let refLink = `https://t.me/${botUsername}?start=${userId}`;
-            let shareText = `انضم إلي واكسب النقاط معي في هذه اللعبة الرائعة! 🎮🔥\n${refLink}`;
+            let shareText = `انضم إلي واكسب النقاط معي! 🎮🔥\n${refLink}`;
             
             if (tg.openTelegramLink) {
                 tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(refLink)}&text=${encodeURIComponent(shareText)}`);
             } else {
-                prompt("نسخ رابط الإحالة الخاص بك:", refLink);
+                prompt("نسخ رابط الإحالة:", refLink);
             }
         });
+
+        // فتح وإغلاق نافذة المهام
+        tasksBtn.addEventListener('click', () => { tasksModal.style.display = 'flex'; });
+        closeModal.addEventListener('click', () => { tasksModal.style.display = 'none'; });
+
+        // تنفيذ المهمة
+        window.completeTask = function(reward, taskId) {
+            if (!localStorage.getItem(taskId)) {
+                score += reward;
+                localStorage.setItem('game_score', score);
+                localStorage.setItem(taskId, "true");
+                scoreElement.innerText = score;
+                alert(`مبروك! حصلت على ${reward} نقطة.`);
+                // هنا يمكنك أيضاً توجيه المستخدم لقناتك عبر tg.openTelegramLink('رابط_قناتك')
+            } else {
+                alert("لقد قمت بتنفيذ هذه المهمة مسبقاً!");
+            }
+        }
     </script>
 </body>
 </html>
