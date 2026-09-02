@@ -59,7 +59,9 @@
 
         /* البطاقات العامة */
         .card { background: #12161c; border: 1px solid #1e2329; border-radius: 12px; padding: 15px; width: 90%; max-width: 350px; margin: 10px 0; text-align: right; }
-        .btn-custom { background: #f59e0b; color: #000; border: none; padding: 10px 15px; border-radius: 8px; font-weight: bold; cursor: pointer; width: 100%; margin-top: 10px; }
+        .btn-custom { background: #f59e0b; color: #000; border: none; padding: 10px 15px; border-radius: 8px; font-weight: bold; cursor: pointer; width: 100%; margin-top: 10px; transition: background 0.2s; }
+        .btn-custom.checked { background: #22c55e; color: #fff; }
+        .btn-custom.completed { background: #374151; color: #9ca3af; cursor: not-allowed; }
     </style>
 </head>
 <body>
@@ -84,7 +86,7 @@
             <div class="card">
                 <p style="margin: 0 0 5px 0; font-weight: bold;">انضم لقناتنا الرسمية</p>
                 <p style="margin: 0; font-size: 12px; color: #848e9c;">احصل على +100 نقطة مجاناً</p>
-                <button class="btn-custom" onclick="completeTask(100, 'task1')">تنفيذ المهمة</button>
+                <button class="btn-custom" id="taskBtn" onclick="handleTaskButton()">تنفيذ المهمة</button>
             </div>
         </div>
 
@@ -93,7 +95,7 @@
             <h2>دعوة الأصدقاء 🔗</h2>
             <div class="card" style="text-align: center;">
                 <p style="font-size: 13px; color: #848e9c;">احصل على 50 نقطة عن كل صديق تقوم بدعوته!</p>
-                <button class="btn-custom" id="refBtn">مشاركة رابط الإحالة</button>
+                <button class="btn-custom" id="refBtn" style="background:#f59e0b; color:#000;">مشاركة رابط الإحالة</button>
             </div>
         </div>
 
@@ -147,6 +149,9 @@
         const maxEnergy = 100;
         let currentUserId = "6530462258";
 
+        // حالات المهمة: 'start' (تنفيذ) -> 'verify' (تحقق) -> 'done' (مكتملة)
+        let taskState = localStorage.getItem('task1_state') || 'start';
+
         const scoreElement = document.getElementById('score');
         const walletScore = document.getElementById('walletScore');
         const usdtValue = document.getElementById('usdtValue');
@@ -157,8 +162,13 @@
         const userIdDisplay = document.getElementById('userIdDisplay');
         const refBtn = document.getElementById('refBtn');
         const withdrawBtn = document.getElementById('withdrawBtn');
+        const taskBtn = document.getElementById('taskBtn');
+
+        // ضع رابط قناتك هنا (استبدل EL_CHAPO_FLEX_CITY بمعرف قناتك)
+        const channelUrl = "https://t.me/EL_CHAPO_FLEX_CITY";
 
         updateUI();
+        updateTaskUI();
 
         if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
             userInfo.innerText = `مرحباً، ${tg.initDataUnsafe.user.first_name}!`;
@@ -175,12 +185,48 @@
             scoreElement.innerText = score;
             walletScore.innerHTML = `${score} <span style="font-size: 14px; color: #848e9c;">نقطة</span>`;
             
-            // حساب القيمة بـ USDT (كل 10000 نقطة = 1 USDT)
             let usdt = (score / 10000).toFixed(4);
             usdtValue.innerText = `≈ ${usdt} $ USDT`;
 
             energyBar.style.width = (energy / maxEnergy) * 100 + '%';
             energyText.innerText = energy;
+        }
+
+        function updateTaskUI() {
+            if (taskState === 'verify') {
+                taskBtn.innerText = "تحقق من الاشتراك 🔄";
+                taskBtn.className = "btn-custom checked";
+            } else if (taskState === 'done') {
+                taskBtn.innerText = "تمت الإفادة بنجاح ✔️";
+                taskBtn.className = "btn-custom completed";
+            } else {
+                taskBtn.innerText = "تنفيذ المهمة";
+                taskBtn.className = "btn-custom";
+            }
+        }
+
+        // تفاعل زر المهمة
+        window.handleTaskButton = function() {
+            if (taskState === 'start') {
+                // الخطوة الأولى: فتح القناة للاشتراك
+                if (tg.openTelegramLink) {
+                    tg.openTelegramLink(channelUrl);
+                } else {
+                    window.open(channelUrl, '_blank');
+                }
+                taskState = 'verify';
+                localStorage.setItem('task1_state', 'verify');
+                updateTaskUI();
+            } else if (taskState === 'verify') {
+                // الخطوة الثانية: التحقق ومنح النقاط
+                score += 100;
+                taskState = 'done';
+                localStorage.setItem('game_score', score);
+                localStorage.setItem('task1_state', 'done');
+                updateUI();
+                updateTaskUI();
+                alert("مبروك! تم التحقق بنجاح وحصلت على 100 نقطة.");
+            }
         }
 
         // تعبئة الطاقة تدريجياً
@@ -242,19 +288,6 @@
                 prompt("نسخ رابط الإحالة الخاص بك:", refLink);
             }
         });
-
-        // المهام
-        window.completeTask = function(reward, taskId) {
-            if (!localStorage.getItem(taskId)) {
-                score += reward;
-                localStorage.setItem('game_score', score);
-                localStorage.setItem(taskId, "true");
-                updateUI();
-                alert(`مبروك! تمت الإضافة بنجاح، حصلت على ${reward} نقطة.`);
-            } else {
-                alert("لقد قمت بتنفيذ هذه المهمة مسبقاً!");
-            }
-        }
     </script>
 </body>
 </html>
