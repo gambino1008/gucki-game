@@ -3,33 +3,91 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>لعبة النقر</title>
+    <title>لعبة النقر وإحالة الأصدقاء</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         body { background-color: #0f172a; color: #ffffff; font-family: Arial, sans-serif; text-align: center; margin: 0; padding: 0; display: flex; flex-direction: column; justify-content: space-between; height: 100vh; overflow: hidden; }
-        .header { padding: 20px; }
-        .score-board { font-size: 45px; font-weight: bold; color: #38bdf8; margin-top: 10px; }
+        .header { padding: 15px; }
+        .score-board { font-size: 40px; font-weight: bold; color: #38bdf8; margin-top: 5px; }
         .coin-container { display: flex; justify-content: center; align-items: center; flex-grow: 1; }
-        .tap-button { width: 210px; height: 210px; background: linear-gradient(135deg, #38bdf8, #0284c7); border: none; border-radius: 50%; cursor: pointer; box-shadow: 0 10px 25px rgba(56, 189, 248, 0.4); font-size: 26px; font-weight: bold; color: white; outline: none; user-select: none; }
+        .tap-button { width: 190px; height: 190px; background: linear-gradient(135deg, #38bdf8, #0284c7); border: none; border-radius: 50%; cursor: pointer; box-shadow: 0 10px 25px rgba(56, 189, 248, 0.4); font-size: 24px; font-weight: bold; color: white; outline: none; user-select: none; }
         .tap-button:active { transform: scale(0.90); }
-        .footer { padding: 20px; font-size: 14px; color: #94a3b8; }
+        .footer { padding: 15px; font-size: 13px; color: #94a3b8; background: #1e293b; border-top: 1px solid #334155; }
+        .ref-btn { background: #22c55e; color: white; border: none; padding: 10px 20px; font-size: 15px; border-radius: 8px; cursor: pointer; margin-top: 8px; font-weight: bold; width: 100%; }
     </style>
 </head>
 <body>
-    <div class="header"><p>رصيدك الحالي</p><div class="score-board" id="score">0</div></div>
-    <div class="coin-container"><button class="tap-button" id="tapBtn">اضغط هنا! 🪙</button></div>
-    <div class="footer"><p id="userInfo">جاري تحميل اللعبة...</p></div>
+    <div class="header">
+        <p id="userInfo">جاري تحميل اللعبة...</p>
+        <p style="margin:5px 0 0 0;">رصيدك الحالي</p>
+        <div class="score-board" id="score">0</div>
+    </div>
+
+    <div class="coin-container">
+        <button class="tap-button" id="tapBtn">اضغط هنا! 🪙</button>
+    </div>
+
+    <div class="footer">
+        <p style="margin:0 0 5px 0;">ادعُ أصدقاءك واكسب 50 نقطة لكل صديق!</p>
+        <button class="ref-btn" id="refBtn">🔗 دعوة صديق</button>
+    </div>
+
     <script>
-        let tg = window.Telegram.WebApp; tg.expand();
+        let tg = window.Telegram.WebApp;
+        tg.expand();
+
         let score = localStorage.getItem('game_score') ? parseInt(localStorage.getItem('game_score')) : 0;
-        const scoreElement = id => document.getElementById(id);
-        scoreElement('score').innerText = score;
-        if (tg.initDataUnsafe && tg.initDataUnsafe.user) { scoreElement('userInfo').innerText = `مرحباً، ${tg.initDataUnsafe.user.first_name}!`; }
-        document.getElementById('tapBtn').addEventListener('click', () => {
-            score += 1; scoreElement('score').innerText = score; localStorage.setItem('game_score', score);
-            if (tg.HapticFeedback) { tg.HapticFeedback.impactOccurred('light'); }
+        const scoreElement = document.getElementById('score');
+        const tapBtn = document.getElementById('tapBtn');
+        const userInfo = document.getElementById('userInfo');
+        const refBtn = document.getElementById('refBtn');
+
+        scoreElement.innerText = score;
+
+        let userId = "guest";
+        if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
+            userInfo.innerText = `مرحباً، ${tg.initDataUnsafe.user.first_name}!`;
+            userId = tg.initDataUnsafe.user.id;
+            
+            // التحقق إذا دخل عبر رابط إحالة لأول مرة
+            let startParam = tg.initDataUnsafe.start_param;
+            if (startParam && startParam !== String(userId)) {
+                let rewardedKey = `ref_reward_${startParam}`;
+                if (!localStorage.getItem(rewardedKey)) {
+                    score += 50; // مكافأة الإحالة
+                    localStorage.setItem('game_score', score);
+                    localStorage.setItem(rewardedKey, "true");
+                }
+            }
+        } else {
+            userInfo.innerText = "وضع التجربة";
+        }
+
+        scoreElement.innerText = score;
+
+        // حدث النقر لزيادة النقاط
+        tapBtn.addEventListener('click', () => {
+            score += 1;
+            scoreElement.innerText = score;
+            localStorage.setItem('game_score', score);
+
+            if (tg.HapticFeedback) {
+                tg.HapticFeedback.impactOccurred('light');
+            }
+        });
+
+        // زر دعوة الأصدقاء
+        refBtn.addEventListener('click', () => {
+            let botUsername = "gucki_game_bot"; // استبدل هذا بمعرف بوتك الفعلي الذي ينتهي بـ bot
+            let refLink = `https://t.me/${botUsername}?start=${userId}`;
+            let shareText = `انضم إلي واكسب النقاط معي في هذه اللعبة الرائعة! 🎮🔥\n${refLink}`;
+            
+            if (tg.openTelegramLink) {
+                tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(refLink)}&text=${encodeURIComponent(shareText)}`);
+            } else {
+                prompt("نسخ رابط الإحالة الخاص بك:", refLink);
+            }
         });
     </script>
 </body>
 </html>
-
